@@ -12,6 +12,13 @@ import logging
 import os
 import sys
 
+# PyInstaller --noconsole sets sys.stdout/stderr to None.
+# Redirect to devnull so argparse, logging, and print() don't crash.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
 
 def get_base_dir() -> str:
     """Get the directory containing the exe (frozen) or project root (dev)."""

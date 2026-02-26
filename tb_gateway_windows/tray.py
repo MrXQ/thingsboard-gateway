@@ -32,6 +32,7 @@ class TrayApp:
         self._previous_state: Optional[GatewayState] = None
         self._current_state: Optional[GatewayState] = None
         self._poll_timer: Optional[Timer] = None
+        self._stopped = False
 
         self._icon = pystray.Icon(
             name="tb-gateway",
@@ -47,12 +48,15 @@ class TrayApp:
 
     def stop(self):
         """Stop polling and remove tray icon."""
+        self._stopped = True
         if self._poll_timer is not None:
             self._poll_timer.cancel()
         self._icon.stop()
 
     def _schedule_poll(self):
         """Schedule the next status poll."""
+        if self._stopped:
+            return
         self._poll_timer = Timer(POLL_INTERVAL_SECONDS, self._poll)
         self._poll_timer.daemon = True
         self._poll_timer.start()
