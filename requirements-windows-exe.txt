@@ -1,0 +1,14 @@
+# Windows Native Exe (.exe) 额外依赖
+# ============================================================
+# 此文件仅用于构建 Windows 可执行文件（tb-gateway.exe）。
+# 与 requirements.txt 分开管理，以保持与 ThingsBoard 官方上游仓库的兼容性，
+# 方便执行 git pull 获取官方更新，而不产生合并冲突。
+#
+# 安装方式：
+#   pip install -r requirements.txt              # 先安装网关核心依赖
+#   pip install -r requirements-windows-exe.txt   # 再安装 Windows exe 构建依赖
+# ============================================================
+
+pystray>=0.19
+Pillow>=10.0
+pyinstaller>=6.0
