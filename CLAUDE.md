@@ -32,7 +32,7 @@ git commit -m "merge: <description> from release/3.8.2-sae-main-<feature>"
 ### Key Rules
 
 - **Never modify files under `thingsboard_gateway/`** — all custom code lives in separate packages (e.g. `tb_gateway_windows/`)
-- Keep `requirements.txt` untouched for clean upstream pulls; use separate requirements files for feature-specific deps (e.g. `requirements-windows-exe.txt`)
+- Keep `requirements.txt` untouched for clean upstream pulls; add all SAE custom deps to `requirements-sae.txt`
 - The `部署指南.md` (deployment guide) at repo root IS merged to dev (it's operational docs, not design docs)
 
 ## Project Structure
@@ -52,7 +52,7 @@ python -m pytest tests/unit/windows/ -v
 
 ```bash
 pip install -r requirements.txt
-pip install -r requirements-windows-exe.txt
+pip install -r requirements-sae.txt
 pip install -e .
 python tb_gateway_windows/build/build.py
 # Output: dist/tb-gateway.exe
