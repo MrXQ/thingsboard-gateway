@@ -1,4 +1,5 @@
 import logging
+import os
 from threading import Thread
 from time import sleep, monotonic
 
@@ -27,7 +28,7 @@ class ScadaConnector(Connector, Thread):
         self.__stopped = False
         self.daemon = True
         self.__converter = ScadaUplinkConverter()
-        self.__bridge = FC7Bridge(jar_path=config.get("jarPath", "FC7_DBcomm_Java.jar"))
+        self.__bridge = FC7Bridge(jar_path=self._resolve_jar_path(config))
         self.__devices = []
         self._parse_devices(config.get("devices", []))
 
@@ -44,6 +45,17 @@ class ScadaConnector(Connector, Thread):
             return logger
         except Exception:
             return log
+
+    @staticmethod
+    def _resolve_jar_path(config):
+        jar_path = config.get("jarPath", "exlib/FC7_DBcomm_Java.jar")
+        if not os.path.isabs(jar_path):
+            # Resolve relative to tb_gateway_collect package root
+            pkg_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            candidate = os.path.join(pkg_root, jar_path)
+            if os.path.exists(candidate):
+                return candidate
+        return jar_path
 
     def _parse_devices(self, devices_config):
         self.__devices = []
