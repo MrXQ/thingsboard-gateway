@@ -1,0 +1,17 @@
+{
+  "pollIntervalMs": 3000,
+  "jarPath": "exlib/FC7_DBcomm_Java.jar",
+  "devices": [
+    {
+      "deviceName": "SCADA-Line1",
+      "deviceType": "plc",
+      "address": "192.168.1.11",
+      "port": 2006,
+      "attributeSource": "thingsboard",
+      "parameters": [
+        {"address": "GLUE_TIME1", "dataType": "REAL", "dataLength": 2, "name": "glue_time", "scale": 0.001},
+        {"address": "TEMP", "dataType": "DINT", "dataLength": 2, "name": "temperature"}
+      ]
+    }
+  ]
+}
