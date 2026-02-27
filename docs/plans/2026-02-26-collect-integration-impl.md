@@ -1855,14 +1855,50 @@ git commit -m "feat(collect): add JPype1 dependency for SCADA FC7 bridge"
 
 | Task | Component | Tests | Status |
 |------|-----------|-------|--------|
-| 1 | Package scaffolding | - | - |
-| 2 | Shared data types (KVDataType, KVTypeFormat, PlcParam) | 19 | - |
-| 3 | KV8000 protocol client (TCP + ASCII) | 10 | - |
-| 4 | KV8000 uplink converter | 4 | - |
-| 5 | KV8000 connector (polling, RPC, lifecycle) | 7 | - |
-| 6 | SCADA FC7 bridge (JPype wrapper) | 6 | - |
-| 7 | SCADA uplink converter | 4 | - |
-| 8 | SCADA connector (polling, RPC, lifecycle) | 6 | - |
-| 9 | Example config files | - | - |
-| 10 | Dependencies + full test run | - | - |
-| **Total** | | **~56** | |
+| 1 | Package scaffolding | - | Done |
+| 2 | Shared data types (KVDataType, KVTypeFormat, PlcParam) | 21 | Done |
+| 3 | KV8000 protocol client (TCP + ASCII) | 15 | Done |
+| 4 | KV8000 uplink converter | 4 | Done |
+| 5 | KV8000 connector (polling, RPC, lifecycle) | 7 | Done |
+| 6 | SCADA FC7 bridge (JPype wrapper) | 6 | Done |
+| 7 | SCADA uplink converter | 4 | Done |
+| 8 | SCADA connector (polling, RPC, lifecycle) | 6 | Done |
+| 9 | Example config files | - | Done |
+| 10 | Dependencies + full test run | - | Done |
+| **Total** | | **63 unit + 6 integration = 69** | |
+
+---
+
+## Addendum: Extra tasks added during implementation
+
+### Extra A: Bundle FC7 JAR and native DLL
+
+**Problem:** The `collect/` folder (original Java project) won't exist after merge to dev. The FC7 JAR and its native DLL need to ship with the `tb_gateway_collect` package.
+
+**Solution:**
+- Copied `collect/exlib/FC7_DBcomm_Java.jar` → `tb_gateway_collect/exlib/FC7_DBcomm_Java.jar`
+- Extracted `FC7_DbComm.dll` from JAR → `tb_gateway_collect/exlib/native/FC7_DbComm.dll`
+- FC7Bridge now auto-discovers `native/` dir next to the JAR and sets `-Djava.library.path`
+- ScadaConnector resolves `jarPath` config relative to `tb_gateway_collect` package root (falls back to raw path if not found)
+- Default `jarPath` updated from `"FC7_DBcomm_Java.jar"` to `"exlib/FC7_DBcomm_Java.jar"`
+
+### Extra B: FC7 Bridge integration tests (6 tests)
+
+**File:** `tests/unit/collect/test_scada_fc7_bridge_integration.py`
+
+Tests that actually start the JVM via JPype, load the FC7 JAR, and call real Java methods:
+- `test_dbcomm_instantiation` — DBComm class loads and instantiates
+- `test_initial_returns_session_id` — Initial() returns a positive session ID
+- `test_connect_remote_server_returns_bool` — ConnectRemoteServer() returns bool
+- `test_is_connected_returns_false_without_server` — IsConnected() returns False (no SCADA running)
+- `test_disconnect_does_not_crash` — DisConnect() on unconnected session is safe
+- `test_bridge_connect_and_is_connected` — Full FC7Bridge wrapper round-trip
+
+Auto-skipped on non-Windows, missing JPype, or missing JAR/DLL.
+
+### Implementation fixes applied (not in original plan)
+
+1. **`.gitignore` had bare `collect`** — changed to `/collect/` so `tb_gateway_collect/` and `tests/unit/collect/` aren't ignored
+2. **KVTypeFormat enum aliasing** — added discriminator string as 3rd tuple element (BOOL/UINT/STRING all had same `(U_16DEC, 1)` value)
+3. **Connector logger init** — `init_logger()` with mock gateway creates broken TbLogger handlers. Both KV8000Connector and ScadaConnector use `_create_logger()` with a test `logger.debug()` call, falling back to stdlib `logging` on failure
+4. **RPC write test needs session** — test_rpc_plc_write must call `_poll_device()` first to establish a session_id before write
