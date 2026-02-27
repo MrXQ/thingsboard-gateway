@@ -12,6 +12,7 @@ def main():
     spec_file = Path(__file__).parent / "windows.spec"
     dist_dir = project_root / "dist"
     config_src = project_root / "thingsboard_gateway" / "config"
+    collect_config_src = project_root / "tb_gateway_collect" / "config"
     config_dst = dist_dir / "config"
     extensions_dst = dist_dir / "extensions"
 
@@ -39,6 +40,12 @@ def main():
         shutil.rmtree(config_dst)
     shutil.copytree(str(config_src), str(config_dst))
     print(f"\nCopied config to: {config_dst}")
+
+    # Copy collect connector configs (user-editable)
+    if collect_config_src.exists():
+        for f in collect_config_src.glob("*.json"):
+            shutil.copy2(str(f), str(config_dst))
+        print(f"Copied collect configs to: {config_dst}")
 
     # Create extensions directory
     extensions_dst.mkdir(exist_ok=True)
