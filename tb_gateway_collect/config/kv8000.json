@@ -1,0 +1,17 @@
+{
+  "pollIntervalMs": 3000,
+  "devices": [
+    {
+      "deviceName": "KV8000-Line1",
+      "deviceType": "plc",
+      "address": "192.168.1.100",
+      "port": 8501,
+      "attributeSource": "thingsboard",
+      "parameters": [
+        {"address": "DM15000", "dataType": "DINT", "dataLength": 2, "name": "temperature"},
+        {"address": "DM15002", "dataType": "REAL", "dataLength": 2, "name": "pressure", "scale": 0.001},
+        {"address": "DM15004.3", "dataType": "BOOL", "dataLength": 1, "name": "alarm_motor_overheat"}
+      ]
+    }
+  ]
+}
