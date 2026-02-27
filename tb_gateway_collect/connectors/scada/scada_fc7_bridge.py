@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Dict, List, Optional
 
 try:
@@ -22,9 +23,21 @@ class FC7Bridge:
         if jpype is None:
             raise ImportError("JPype1 is required for SCADA/FC7 support. Install with: pip install JPype1")
         if not jpype.isJVMStarted():
-            jpype.startJVM(classpath=[self._jar_path])
+            native_dir = self._find_native_dir()
+            jvm_args = []
+            if native_dir:
+                jvm_args.append(f"-Djava.library.path={native_dir}")
+            jpype.startJVM(*jvm_args, classpath=[self._jar_path])
         DBComm = jpype.JClass("com.scada.dbcomm.DBComm")
         self._dbcomm = DBComm()
+
+    def _find_native_dir(self) -> Optional[str]:
+        """Locate the native/ directory next to the JAR file."""
+        jar_dir = os.path.dirname(os.path.abspath(self._jar_path))
+        native_dir = os.path.join(jar_dir, "native")
+        if os.path.isdir(native_dir):
+            return native_dir
+        return None
 
     def connect(self, ip: str, port: int) -> int:
         session_id = self._dbcomm.Initial()
