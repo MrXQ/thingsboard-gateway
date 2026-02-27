@@ -1,0 +1,17 @@
+{
+  "_comment": "Add these entries to tb_gateway.json 'connectors' array to enable collect connectors.",
+  "connectors": [
+    {
+      "name": "KV8000 Collector",
+      "type": "kv8000",
+      "class": "KV8000Connector",
+      "configuration": "kv8000.json"
+    },
+    {
+      "name": "SCADA Collector",
+      "type": "scada",
+      "class": "ScadaConnector",
+      "configuration": "scada.json"
+    }
+  ]
+}
