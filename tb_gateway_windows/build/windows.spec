@@ -9,6 +9,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(SPECPATH).parent.parent
 GATEWAY_PKG = PROJECT_ROOT / "thingsboard_gateway"
 WRAPPER_PKG = PROJECT_ROOT / "tb_gateway_windows"
+COLLECT_PKG = PROJECT_ROOT / "tb_gateway_collect"
 
 block_cipher = None
 
@@ -52,6 +53,21 @@ HIDDEN_IMPORTS = [
     "psutil",
     "pystray",
     "PIL",
+    # Collect connectors (dynamically loaded via extension shims)
+    "tb_gateway_collect.common.plc_data_types",
+    "tb_gateway_collect.connectors.kv8000.kv8000_connector",
+    "tb_gateway_collect.connectors.kv8000.kv8000_protocol",
+    "tb_gateway_collect.connectors.kv8000.kv8000_uplink_converter",
+    "tb_gateway_collect.connectors.scada.scada_connector",
+    "tb_gateway_collect.connectors.scada.scada_fc7_bridge",
+    "tb_gateway_collect.connectors.scada.scada_uplink_converter",
+    # Collect extension shims
+    "thingsboard_gateway.extensions.kv8000",
+    "thingsboard_gateway.extensions.scada",
+    # JPype (SCADA/FC7 JVM bridge)
+    "jpype",
+    "jpype._core",
+    "jpype._jclass",
 ]
 
 a = Analysis(
@@ -63,6 +79,9 @@ a = Analysis(
         (str(GATEWAY_PKG / "config"), "thingsboard_gateway/config"),
         # Bundle extensions directory structure
         (str(GATEWAY_PKG / "extensions"), "thingsboard_gateway/extensions"),
+        # Bundle collect connector data files (JAR, DLL, configs)
+        (str(COLLECT_PKG / "exlib"), "tb_gateway_collect/exlib"),
+        (str(COLLECT_PKG / "config"), "tb_gateway_collect/config"),
     ],
     hiddenimports=HIDDEN_IMPORTS,
     hookspath=[],
