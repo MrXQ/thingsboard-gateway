@@ -2,15 +2,53 @@
   "pollIntervalMs": 3000,
   "devices": [
     {
-      "deviceName": "KV8000-Line1",
+      "deviceName": "KV8000-YB101",
       "deviceType": "plc",
       "address": "192.168.1.100",
       "port": 8501,
-      "attributeSource": "thingsboard",
+      "attributeSource": "local",
       "parameters": [
-        {"address": "DM15000", "dataType": "DINT", "dataLength": 2, "name": "temperature"},
-        {"address": "DM15002", "dataType": "REAL", "dataLength": 2, "name": "pressure", "scale": 0.001},
-        {"address": "DM15004.3", "dataType": "BOOL", "dataLength": 1, "name": "alarm_motor_overheat"}
+        {"address": "DM10000", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_VSBM_Potting_POTTING_CYCLE_TIME"},
+        {"address": "DM10006", "dataType": "DINT", "dataLength": 2, "name": "yb101_PC_VSBM_Bonding_BONDING_OUTPUT"},
+        {"address": "DM10016", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_VSBM_Potting_GLUE_TIME_1"},
+        {"address": "DM10018", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_VSBM_Potting_GLUE_TIME_2"},
+        {"address": "DM10012", "dataType": "DINT", "dataLength": 2, "name": "yb101_PC_VSBM_Bonding_SBB_NOZZLE_LIFE"},
+        {"address": "DM10060", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_VSBM_Bonding_BLOW_H_H_TIME"},
+        {"address": "DM10032", "dataType": "DINT", "dataLength": 2, "name": "yb101_PC_VSBM_Bonding_BOND_PAD_PITCH_1"},
+        {"address": "DM10074", "dataType": "DINT", "dataLength": 2, "name": "yb101_PC_VSBM_Bonding_1ST_LASER_PAD_1_ENERGY"},
+        {"address": "DM10174", "dataType": "DINT", "dataLength": 2, "name": "yb101_PC_VSBM_Potting_GLUE_POSI_X_1"},
+        {"address": "DM10376", "dataType": "DINT", "dataLength": 2, "name": "yb101_PC_VSBM_Potting_CURRENT_WORKPIECE_NO"},
+        {"address": "DM13500", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_W_VSBM_AutoAdjust_GLUE_TIME_1"},
+        {"address": "DM13502", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_W_VSBM_AutoAdjust_GLUE_TIME_2"},
+        {"address": "DM13518", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_W_VSBM_AutoAdjust_GLUE_TIME_1_R"},
+        {"address": "DM13520", "dataType": "REAL", "dataLength": 2, "name": "yb101_PC_W_VSBM_AutoAdjust_GLUE_TIME_2_R"},
+        {"address": "DM16000.0", "dataType": "BOOL", "dataLength": 1, "name": "yb101_FP7_ALARM_1"},
+        {"address": "LR10000.0", "dataType": "BOOL", "dataLength": 1, "name": "yb101_FP7_ALARM_177_W_STOP"}
+      ]
+    },
+    {
+      "deviceName": "KV8000-YB102",
+      "deviceType": "plc",
+      "address": "192.168.1.100",
+      "port": 8501,
+      "attributeSource": "local",
+      "parameters": [
+        {"address": "DM12000", "dataType": "REAL", "dataLength": 2, "name": "yb102_PC_VSBM_Potting_POTTING_CYCLE_TIME"},
+        {"address": "DM12006", "dataType": "DINT", "dataLength": 2, "name": "yb102_PC_VSBM_Bonding_BONDING_OUTPUT"},
+        {"address": "DM12016", "dataType": "REAL", "dataLength": 2, "name": "yb102_PC_VSBM_Potting_GLUE_TIME_1"},
+        {"address": "DM12018", "dataType": "REAL", "dataLength": 2, "name": "yb102_PC_VSBM_Potting_GLUE_TIME_2"},
+        {"address": "DM12012", "dataType": "DINT", "dataLength": 2, "name": "yb102_PC_VSBM_Bonding_SBB_NOZZLE_LIFE"},
+        {"address": "DM12060", "dataType": "REAL", "dataLength": 2, "name": "yb102_PC_VSBM_Bonding_BLOW_H_H_TIME"},
+        {"address": "DM12032", "dataType": "DINT", "dataLength": 2, "name": "yb102_PC_VSBM_Bonding_BOND_PAD_PITCH_1"},
+        {"address": "DM12074", "dataType": "DINT", "dataLength": 2, "name": "yb102_PC_VSBM_Bonding_1ST_LASER_PAD_1_ENERGY"},
+        {"address": "DM12174", "dataType": "DINT", "dataLength": 2, "name": "yb102_PC_VSBM_Potting_GLUE_POSI_X_1"},
+        {"address": "DM12376", "dataType": "DINT", "dataLength": 2, "name": "yb102_PC_VSBM_Potting_CURRENT_WORKPIECE_NO"},
+        {"address": "DM14500", "dataType": "REAL", "dataLength": 2, "name": "yb102_FP7_W_VSBM_AutoAdjust_GLUE_TIME_1"},
+        {"address": "DM14502", "dataType": "REAL", "dataLength": 2, "name": "yb102_FP7_W_VSBM_AutoAdjust_GLUE_TIME_2"},
+        {"address": "DM14018", "dataType": "REAL", "dataLength": 2, "name": "yb102_FP7_W_VSBM_AutoAdjust_GLUE_TIME_1_R"},
+        {"address": "DM14020", "dataType": "REAL", "dataLength": 2, "name": "yb102_FP7_W_VSBM_AutoAdjust_GLUE_TIME_2_R"},
+        {"address": "DM16100.0", "dataType": "BOOL", "dataLength": 1, "name": "yb102_FP7_ALARM_1"},
+        {"address": "LR10100.0", "dataType": "BOOL", "dataLength": 1, "name": "yb102_FP7_ALARM_177_W_STOP"}
       ]
     }
   ]
