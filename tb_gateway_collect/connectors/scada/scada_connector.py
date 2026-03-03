@@ -7,6 +7,7 @@ from thingsboard_gateway.connectors.connector import Connector
 from thingsboard_gateway.gateway.constants import CONNECTOR_PARAMETER
 from thingsboard_gateway.tb_utility.tb_logger import init_logger
 
+from tb_gateway_collect.common.change_filter import ChangeFilter
 from tb_gateway_collect.common.plc_data_types import PlcParam
 from tb_gateway_collect.connectors.scada.scada_fc7_bridge import FC7Bridge
 from tb_gateway_collect.connectors.scada.scada_uplink_converter import ScadaUplinkConverter
@@ -28,6 +29,9 @@ class ScadaConnector(Connector, Thread):
         self.__stopped = False
         self.daemon = True
         self.__converter = ScadaUplinkConverter()
+        self.__change_filter = ChangeFilter(
+            enabled=config.get("uploadOnChangeOnly", True)
+        )
         self.__bridge = FC7Bridge(jar_path=self._resolve_jar_path(config))
         self.__devices = []
         self._parse_devices(config.get("devices", []))
@@ -183,11 +187,12 @@ class ScadaConnector(Connector, Thread):
         if raw_data:
             config = {"deviceName": device_name, "deviceType": device_type}
             converted = self.__converter.convert(config, raw_data, params)
+            filtered = self.__change_filter.filter(converted)
 
-            if converted.telemetry:
+            if filtered is not None:
                 self.__gateway.add_device(device_name, {CONNECTOR_PARAMETER: self},
                                           device_type=device_type)
-                self.__gateway.send_to_storage(self.get_name(), self.get_id(), converted)
+                self.__gateway.send_to_storage(self.get_name(), self.get_id(), filtered)
 
     def _handle_plc_write(self, device_name, params):
         address = params.get("address")
