@@ -77,8 +77,8 @@ class XJSBBParser(LogParser):
                     device_name=device_name,
                     timestamp=timestamp,
                     values={
-                        "var_name": var_name,
-                        "var_value": var_value,
+                        "Time": time_str,
+                        var_name: var_value,
                         "raw_data": m.group().rstrip("\r\n"),
                     },
                     system_type="xjsbb",

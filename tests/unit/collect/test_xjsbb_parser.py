@@ -32,8 +32,11 @@ class TestXJSBBParser:
             r = records[0]
             assert r.device_name == "XJSBB-YB101"
             assert r.system_type == "xjsbb"
-            assert r.values["var_name"] == "Temperature"
-            assert r.values["var_value"] == "25.5"
+            assert r.values["Time"] == "2026-03-03 10:30:45:123"
+            assert r.values["Temperature"] == "25.5"
+            assert "raw_data" in r.values
+            assert "var_name" not in r.values
+            assert "var_value" not in r.values
             assert r.timestamp == datetime(2026, 3, 3, 10, 30, 45, 123000)
         finally:
             os.unlink(path)
@@ -46,10 +49,10 @@ class TestXJSBBParser:
             # Temperature: 25.5 (new), Pressure: 101.3 (new),
             # Temperature: 25.5 (same -> skip), Temperature: 26.0 (changed)
             assert len(records) == 3
-            temp_records = [r for r in records if r.values["var_name"] == "Temperature"]
+            temp_records = [r for r in records if "Temperature" in r.values]
             assert len(temp_records) == 2
-            assert temp_records[0].values["var_value"] == "25.5"
-            assert temp_records[1].values["var_value"] == "26.0"
+            assert temp_records[0].values["Temperature"] == "25.5"
+            assert temp_records[1].values["Temperature"] == "26.0"
         finally:
             os.unlink(path)
 
@@ -79,8 +82,8 @@ class TestXJSBBParser:
             parser = XJSBBParser()
             records, _ = parser.parse(path, "XJSBB-YB101", None)
             assert len(records) == 1
-            assert records[0].values["var_name"] == "Var Name"
-            assert records[0].values["var_value"] == "Value With Spaces"
+            assert records[0].values["Var Name"] == "Value With Spaces"
+            assert records[0].values["Time"] == "2026-03-03 10:00:00:000"
         finally:
             os.unlink(path)
 
