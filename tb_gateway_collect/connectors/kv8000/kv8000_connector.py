@@ -8,6 +8,7 @@ from thingsboard_gateway.tb_utility.tb_logger import init_logger
 
 from tb_gateway_collect.common.plc_data_types import PlcParam, KVTypeFormat
 from tb_gateway_collect.connectors.kv8000.kv8000_protocol import KV8000Client
+from tb_gateway_collect.common.change_filter import ChangeFilter
 from tb_gateway_collect.connectors.kv8000.kv8000_uplink_converter import KV8000UplinkConverter
 
 log = logging.getLogger(__name__)
@@ -27,6 +28,9 @@ class KV8000Connector(Connector, Thread):
         self.__stopped = False
         self.daemon = True
         self.__converter = KV8000UplinkConverter()
+        self.__change_filter = ChangeFilter(
+            enabled=config.get("uploadOnChangeOnly", True)
+        )
         self.__devices = []
         self._parse_devices(config.get("devices", []))
 
@@ -158,10 +162,12 @@ class KV8000Connector(Connector, Thread):
         if telemetry_data:
             config = {"deviceName": device_name, "deviceType": device_type}
             converted = self.__converter.convert(config, telemetry_data)
+            filtered = self.__change_filter.filter(converted)
 
-            self.__gateway.add_device(device_name, {CONNECTOR_PARAMETER: self},
-                                      device_type=device_type)
-            self.__gateway.send_to_storage(self.get_name(), self.get_id(), converted)
+            if filtered is not None:
+                self.__gateway.add_device(device_name, {CONNECTOR_PARAMETER: self},
+                                          device_type=device_type)
+                self.__gateway.send_to_storage(self.get_name(), self.get_id(), filtered)
 
     def _handle_plc_write(self, device_name, params):
         address = params.get("address")
