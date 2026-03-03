@@ -256,3 +256,87 @@ class TestLogCollectorFlushIntegration:
             data = json.load(f)
         # The data file's cursor should be saved
         assert any("data.txt" in k for k in data.keys())
+
+
+class TestLogCollectorPollSkip:
+
+    def test_poll_skips_unchanged_file(self):
+        """Second poll should not even invoke the parser for unchanged files."""
+        from tb_gateway_collect.connectors.log_collector.parsers import get_parser as real_get_parser
+
+        d = tempfile.mkdtemp()
+        state_dir = tempfile.mkdtemp()
+        state_path = os.path.join(state_dir, "state.json")
+        # Warm restart: pre-populate state so snapshot is skipped
+        with open(state_path, "w") as f:
+            json.dump({"dummy.txt": {"byte_offset": 0}}, f)
+
+        path = os.path.join(d, "data.txt")
+        with open(path, "w", newline="") as f:
+            f.write("2026-03-03 10:30:45:123   SkipTest:1.0\r\n")
+
+        gateway = MagicMock()
+        config = _make_config(sources=[{
+            "systemType": "xjsbb",
+            "deviceName": "XJSBB-YB101",
+            "deviceType": "log_source",
+            "watchDirs": [d],
+            "filePattern": "*.txt",
+        }], state_dir=state_dir)
+        # Use very short poll interval to get multiple polls
+        config["pollIntervalMs"] = 300
+        connector = LogCollectorConnector(gateway, config, "log_collector")
+
+        with patch(
+            'tb_gateway_collect.connectors.log_collector.log_collector_connector.get_parser',
+            wraps=real_get_parser,
+        ) as mock_gp:
+            connector.open()
+            time.sleep(2)  # should get ~6 polls
+            connector.close()
+
+            # With mtime/size skip, parser should only be invoked once (first poll)
+            assert mock_gp.call_count == 1
+
+    def test_poll_processes_modified_file(self):
+        """File modified between polls should be re-processed."""
+        from tb_gateway_collect.connectors.log_collector.parsers import get_parser as real_get_parser
+
+        d = tempfile.mkdtemp()
+        state_dir = tempfile.mkdtemp()
+        state_path = os.path.join(state_dir, "state.json")
+        # Warm restart: pre-populate state so snapshot is skipped
+        with open(state_path, "w") as f:
+            json.dump({"dummy.txt": {"byte_offset": 0}}, f)
+
+        path = os.path.join(d, "data.txt")
+        with open(path, "w", newline="") as f:
+            f.write("2026-03-03 10:30:45:123   ModTest:1.0\r\n")
+
+        gateway = MagicMock()
+        config = _make_config(sources=[{
+            "systemType": "xjsbb",
+            "deviceName": "XJSBB-YB101",
+            "deviceType": "log_source",
+            "watchDirs": [d],
+            "filePattern": "*.txt",
+        }], state_dir=state_dir)
+        config["pollIntervalMs"] = 500
+        connector = LogCollectorConnector(gateway, config, "log_collector")
+
+        with patch(
+            'tb_gateway_collect.connectors.log_collector.log_collector_connector.get_parser',
+            wraps=real_get_parser,
+        ) as mock_gp:
+            connector.open()
+            time.sleep(1)
+
+            # Append new data between polls
+            with open(path, "a", newline="") as f:
+                f.write("2026-03-03 10:31:00:000   ModTest:2.0\r\n")
+
+            time.sleep(2)
+            connector.close()
+
+            # Parser should be invoked at least twice (first poll + after modification)
+            assert mock_gp.call_count >= 2

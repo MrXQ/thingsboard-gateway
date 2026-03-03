@@ -207,6 +207,15 @@ class LogCollectorConnector(Connector, Thread):
             parser = get_parser(system_type)
             cursor = self.__state_tracker.get_cursor(file_path)
             records, new_cursor = parser.parse(file_path, device_name, cursor)
+
+            # Store file stat for poll skip optimization
+            try:
+                st = os.stat(file_path)
+                new_cursor["mtime"] = st.st_mtime
+                new_cursor["size"] = st.st_size
+            except OSError:
+                pass
+
             self.__state_tracker.save_cursor(file_path, new_cursor)
 
             for record in records:
@@ -282,10 +291,23 @@ class LogCollectorConnector(Connector, Thread):
                     self._scan_directory(watch_dir, src)
 
     def _scan_directory(self, directory: str, source: dict):
-        """Walk directory and process any matching files."""
+        """Walk directory and process any matching files that have changed."""
         pattern = source.get("filePattern", "*.txt")
         for root, dirs, files in os.walk(directory):
             for fname in files:
                 if fnmatch.fnmatch(fname, pattern):
                     file_path = os.path.join(root, fname)
+                    if self._file_unchanged(file_path):
+                        continue
                     self._process_file(file_path, source)
+
+    def _file_unchanged(self, file_path: str) -> bool:
+        """Check if file mtime+size match the stored cursor. Skip if unchanged."""
+        cursor = self.__state_tracker.get_cursor(file_path)
+        if cursor is None or "mtime" not in cursor:
+            return False  # no previous stat — must process
+        try:
+            st = os.stat(file_path)
+            return st.st_mtime == cursor["mtime"] and st.st_size == cursor["size"]
+        except OSError:
+            return False
