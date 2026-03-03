@@ -11,7 +11,7 @@ class TestLogUplinkConverter:
         record = LogRecord(
             device_name="ICS-YB101",
             timestamp=datetime(2026, 3, 3, 10, 30, 45, 123000),
-            values={"pos": "3", "result": "OK", "raw_data": "line"},
+            values={"Time": "2026-03-03 10:30:45:123", "POS": "3", "Result": "OK", "raw_data": "line"},
             system_type="ics",
         )
         converted = converter.convert(record)
@@ -24,7 +24,7 @@ class TestLogUplinkConverter:
         record = LogRecord(
             device_name="AB-YB101",
             timestamp=datetime(2026, 3, 3, 10, 30, 45, 123000),
-            values={"a_dim": "12.34"},
+            values={"Time": "2026-03-03 10:30:45:123", "A_Dim(um)": "12.34"},
             system_type="ab",
         )
         converted = converter.convert(record)
