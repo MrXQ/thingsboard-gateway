@@ -83,3 +83,24 @@ class TestStateTracker:
             assert tracker.get_cursor("any.txt") is None
         finally:
             os.unlink(path)
+
+    def test_is_empty_true_when_no_entries(self):
+        path = os.path.join(tempfile.gettempdir(), "empty_state.json")
+        if os.path.exists(path):
+            os.unlink(path)
+        try:
+            tracker = StateTracker(path)
+            assert tracker.is_empty() is True
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_is_empty_false_after_save(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            path = f.name
+        try:
+            tracker = StateTracker(path)
+            tracker.save_cursor("file.txt", {"byte_offset": 100})
+            assert tracker.is_empty() is False
+        finally:
+            os.unlink(path)

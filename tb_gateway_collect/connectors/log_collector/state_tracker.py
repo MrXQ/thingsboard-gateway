@@ -33,6 +33,9 @@ class StateTracker:
     def get_cursor(self, file_path: str) -> Optional[dict]:
         return self._state.get(file_path)
 
+    def is_empty(self) -> bool:
+        return len(self._state) == 0
+
     def save_cursor(self, file_path: str, cursor: dict):
         self._state[file_path] = cursor
         self._flush()
