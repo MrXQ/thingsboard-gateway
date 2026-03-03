@@ -82,36 +82,34 @@ class _BaseHCCMParser(LogParser):
                 else:
                     used_headers = None
 
-                pos = columns[0].strip()
-                values = {"pos": pos, "raw_data": raw}
-                timestamp = None
-
                 if used_headers:
-                    log_val_parts = []
+                    # Check if header row
                     is_header_row = False
                     for i, header in enumerate(used_headers):
-                        col = columns[i].strip()
-                        if header == col:
+                        if columns[i].strip() == header:
                             is_header_row = True
                             break
-                        if header == "Time":
-                            timestamp = _parse_time_only(col)
-                        elif header == "PosID":
-                            values["pos"] = col
-                            log_val_parts.append(col)
-                        else:
-                            log_val_parts.append(col)
                     if is_header_row:
                         continue
-                    values["log_value"] = ",".join(log_val_parts)
+
+                    # Zip all headers with column values
+                    values = {}
+                    for i, header in enumerate(used_headers):
+                        values[header] = columns[i].strip()
+
+                    time_str = values.get("Time")
+                    if not time_str:
+                        continue
+                    timestamp = _parse_time_only(time_str)
                 else:
-                    # No header found: assume last column is time
+                    # No header found: assume last column is time, rest are positional
                     timestamp = _parse_time_only(columns[-1].strip())
-                    values["log_value"] = ",".join(c.strip() for c in columns[:-1])
+                    values = {}
+                    for i, col in enumerate(columns[:-1]):
+                        values[f"col_{i}"] = col.strip()
+                    values["Time"] = columns[-1].strip()
 
-                if timestamp is None:
-                    continue
-
+                values["raw_data"] = raw
                 records.append(LogRecord(
                     device_name=device_name,
                     timestamp=timestamp,
@@ -136,13 +134,13 @@ class HCCMSliderParser(_BaseHCCMParser):
     _system_type = "hccm_slider"
 
     def _post_process(self, records: list[LogRecord]) -> list[LogRecord]:
-        """5-second dedup: if same POS within 5s, keep the later record."""
+        """5-second dedup: if same PosID within 5s, keep the later record."""
         if not records:
             return records
         deduped = [records[0]]
         for r in records[1:]:
             prev = deduped[-1]
-            same_pos = r.values.get("pos") == prev.values.get("pos")
+            same_pos = r.values.get("PosID") == prev.values.get("PosID")
             if same_pos:
                 delta = abs((r.timestamp - prev.timestamp).total_seconds())
                 if delta < 5:

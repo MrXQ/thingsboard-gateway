@@ -40,7 +40,13 @@ class TestHCCMResultParser:
             r = records[0]
             assert r.device_name == "HCCM-Result-YB101"
             assert r.system_type == "hccm_result"
-            assert r.values["pos"] == "1"
+            assert r.values["Time"] == "10:30:5"
+            assert r.values["PosID"] == "1"
+            assert r.values["BaseholeX"] == "10.5"
+            assert r.values["BaseholeY"] == "20.3"
+            assert r.values["SUSP_X"] == "0.5"
+            assert r.values["SUSP_Y"] == "0.3"
+            assert "raw_data" in r.values
             today = date.today()
             assert r.timestamp.date() == today
             assert r.timestamp.hour == 10
@@ -85,7 +91,7 @@ class TestHCCMSliderParser:
             parser = HCCMSliderParser()
             records, _ = parser.parse(path, "HCCM-Slider-YB101", None)
             assert len(records) >= 2
-            assert records[-1].values["pos"] == "2"
+            assert records[-1].values["PosID"] == "2"
         finally:
             os.unlink(path)
 
@@ -95,7 +101,7 @@ class TestHCCMSliderParser:
         try:
             parser = HCCMSliderParser()
             records, _ = parser.parse(path, "HCCM-Slider-YB101", None)
-            pos1_records = [r for r in records if r.values["pos"] == "1"]
+            pos1_records = [r for r in records if r.values["PosID"] == "1"]
             assert len(pos1_records) == 1
             # The second entry (10:30:08) should replace the first (10:30:05)
             assert pos1_records[0].timestamp.second == 8
