@@ -90,31 +90,26 @@ class ICSParser(LogParser):
                 if len(columns) < len(headers):
                     continue
 
-                values = {}
-                timestamp = None
+                # Check if this is a header row (column value == header name)
                 is_header_row = False
-                log_val_parts = []
-
                 for i, header in enumerate(headers):
-                    col = columns[i].strip()
-                    if header.lower() == col.lower():
+                    if columns[i].strip().lower() == header.lower():
                         is_header_row = True
                         break
-                    h = header.lower()
-                    if h == "time":
-                        timestamp = _parse_timestamp_with_millis(col)
-                    elif h in ("pos",):
-                        values["pos"] = col
-                    elif h == "master":
-                        values["master"] = col
-                    elif h == "result":
-                        values["log_value"] = ",".join(log_val_parts)
-                        values["result"] = col
-                    else:
-                        log_val_parts.append(col)
 
-                if is_header_row or timestamp is None:
+                if is_header_row:
                     continue
+
+                # Zip all headers with column values
+                values = {}
+                for i, header in enumerate(headers):
+                    values[header] = columns[i].strip()
+
+                # Parse timestamp from Time column
+                time_str = values.get("Time")
+                if not time_str:
+                    continue
+                timestamp = _parse_timestamp_with_millis(time_str)
 
                 values["raw_data"] = raw
                 records.append(LogRecord(

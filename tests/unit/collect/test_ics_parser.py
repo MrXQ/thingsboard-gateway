@@ -36,10 +36,17 @@ class TestICSParser:
             r = records[0]
             assert r.device_name == "ICS-YB101"
             assert r.system_type == "ics"
-            assert r.values["pos"] == "3"
-            assert r.values["master"] == "A"
-            assert r.values["result"] == "OK"
-            assert "log_value" in r.values
+            assert r.values["Time"] == "2026-03-03 10:30:45:123"
+            assert r.values["POS"] == "3"
+            assert r.values["Master"] == "A"
+            assert r.values["EX1"] == "1.1"
+            assert r.values["EY1"] == "2.2"
+            assert r.values["ED1"] == "3.3"
+            assert r.values["EDX1"] == "4.4"
+            assert r.values["EDY1"] == "5.5"
+            assert r.values["Result"] == "OK"
+            assert "raw_data" in r.values
+            assert "log_value" not in r.values
             assert r.timestamp == datetime(2026, 3, 3, 10, 30, 45, 123000)
         finally:
             os.unlink(path)
@@ -50,7 +57,20 @@ class TestICSParser:
             parser = ICSParser()
             records, _ = parser.parse(path, "ICS-YB101", None)
             assert len(records) == 1
-            assert records[0].values["result"] == "OK"
+            r = records[0]
+            assert r.values["Time"] == "2026-03-03 10:30:45:100"
+            assert r.values["POS"] == "1"
+            assert r.values["EX1"] == "1"
+            assert r.values["EX2"] == "2"
+            assert r.values["EY1"] == "3"
+            assert r.values["EY2"] == "4"
+            assert r.values["ED1"] == "5"
+            assert r.values["ED2"] == "6"
+            assert r.values["EDX1"] == "7"
+            assert r.values["EDY1"] == "8"
+            assert r.values["EDX2"] == "9"
+            assert r.values["EDY2"] == "10"
+            assert r.values["Result"] == "OK"
         finally:
             os.unlink(path)
 
@@ -86,7 +106,9 @@ class TestICSParser:
             records, _ = parser.parse(path, "ICS-YB101", None)
             # 9 columns -> should use fallback 9-col headers
             assert len(records) == 1
-            assert records[0].values["pos"] == "3"
+            assert records[0].values["POS"] == "3"
+            assert records[0].values["EX1"] == "1.1"
+            assert records[0].values["Result"] == "OK"
         finally:
             os.unlink(path)
 
