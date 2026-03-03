@@ -38,9 +38,19 @@ git commit -m "merge: <description> from release/3.8.2-sae-main-<feature>"
 ## Project Structure
 
 - `thingsboard_gateway/` — upstream ThingsBoard IoT Gateway (DO NOT MODIFY)
+- `tb_gateway_collect/` — KV8000 PLC data collection connector package
 - `tb_gateway_windows/` — Windows native exe wrapper package
 - `tests/unit/windows/` — tests for the Windows wrapper
 - `docs/plans/` — design and implementation plans (feature branches only)
+
+## Active Branches
+
+| Branch | Purpose |
+|--------|---------|
+| `release/3.8.2-sae-main` | Stable base, tracks upstream |
+| `release/3.8.2-sae-main-dev` | Integration branch (code only, no docs/) |
+| `release/3.8.2-sae-main-exe` | Windows exe wrapper (`tb_gateway_windows/`) |
+| `release/3.8.2-sae-main-collect-integrate` | Integrates collect connector into exe build |
 
 ## Testing
 
@@ -57,3 +67,10 @@ pip install -e .
 python tb_gateway_windows/build/build.py
 # Output: dist/tb-gateway.exe
 ```
+
+## Collect Connector (KV8000)
+
+- Package: `tb_gateway_collect/` — Keyence KV8000 PLC connector (ASCII protocol over TCP)
+- Extension shim: `thingsboard_gateway/extensions/kv8000/` re-exports `KV8000Connector` so `TBModuleLoader` can discover it
+- Config: `tb_gateway_collect/config/kv8000.json` (copied to `dist/config/` on build)
+- Custom connector types not in `DEFAULT_CONNECTORS` require `"class": "KV8000Connector"` in the connector entry of `tb_gateway.json`
