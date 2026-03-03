@@ -73,30 +73,26 @@ class ABDimParser(LogParser):
                 if len(columns) < len(headers):
                     continue
 
-                values = {}
-                timestamp = None
+                # Check if this is a header row
                 is_header_row = False
-
                 for i, header in enumerate(headers):
-                    col = columns[i].strip()
-                    if header == col:
+                    if columns[i].strip() == header:
                         is_header_row = True
                         break
-                    if header == "Time":
-                        timestamp = self._parse_timestamp(col)
-                    elif header == "POS":
-                        values["pos"] = col
-                    elif header == "Master":
-                        values["master"] = col
-                    elif header == "A_Dim(um)":
-                        values["a_dim"] = col
-                    elif header == "B_Dim(um)":
-                        values["b_dim"] = col
-                    elif header == "Result":
-                        values["result"] = col
 
-                if is_header_row or timestamp is None:
+                if is_header_row:
                     continue
+
+                # Zip all headers with column values
+                values = {}
+                for i, header in enumerate(headers):
+                    values[header] = columns[i].strip()
+
+                # Parse timestamp from Time column
+                time_str = values.get("Time")
+                if not time_str:
+                    continue
+                timestamp = self._parse_timestamp(time_str)
 
                 values["raw_data"] = raw
                 records.append(LogRecord(

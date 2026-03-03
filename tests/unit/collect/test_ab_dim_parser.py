@@ -31,11 +31,16 @@ class TestABDimParser:
             r = records[0]
             assert r.device_name == "AB-YB101"
             assert r.system_type == "ab"
-            assert r.values["pos"] == "3"
-            assert r.values["master"] == "A"
-            assert r.values["a_dim"] == "12.34"
-            assert r.values["b_dim"] == "56.78"
-            assert r.values["result"] == "OK"
+            assert r.values["Time"] == "2026-03-03 10:30:45:123"
+            assert r.values["Order"] == "1"
+            assert r.values["Result"] == "OK"
+            assert r.values["POS"] == "3"
+            assert r.values["Master"] == "A"
+            assert r.values["A_Dim(um)"] == "12.34"
+            assert r.values["B_Dim(um)"] == "56.78"
+            assert r.values["Head"] == "H1"
+            assert r.values["HGA"] == "HGA1"
+            assert "raw_data" in r.values
             assert r.timestamp == datetime(2026, 3, 3, 10, 30, 45, 123000)
         finally:
             os.unlink(path)
@@ -74,7 +79,7 @@ class TestABDimParser:
 
             records, cursor2 = parser.parse(path, "AB-YB101", cursor)
             assert len(records) == 1
-            assert records[0].values["pos"] == "7"
+            assert records[0].values["POS"] == "7"
         finally:
             os.unlink(path)
 
