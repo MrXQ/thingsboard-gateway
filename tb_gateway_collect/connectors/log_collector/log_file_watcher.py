@@ -30,11 +30,22 @@ class _FileHandler(FileSystemEventHandler):
 
 
 class LogFileWatcher:
-    """Wraps watchdog Observer to watch multiple directories with file patterns."""
+    """Wraps watchdog Observer to watch multiple directories with file patterns.
 
-    def __init__(self, callback: Callable[[str], None]):
+    Args:
+        callback: Called with file_path when a matching file is created/modified.
+        polling_interval: If > 0, use PollingObserver with this interval (seconds).
+                          Use for network share paths where native events are unreliable.
+                          If 0 (default), use native OS Observer.
+    """
+
+    def __init__(self, callback: Callable[[str], None], polling_interval: int = 0):
         self._callback = callback
-        self._observer = Observer()
+        if polling_interval > 0:
+            from watchdog.observers.polling import PollingObserver
+            self._observer = PollingObserver(timeout=polling_interval)
+        else:
+            self._observer = Observer()
         self._watches: list[dict] = []
 
     @property

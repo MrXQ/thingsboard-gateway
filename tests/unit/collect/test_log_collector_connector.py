@@ -340,3 +340,56 @@ class TestLogCollectorPollSkip:
 
             # Parser should be invoked at least twice (first poll + after modification)
             assert mock_gp.call_count >= 2
+
+
+class TestLogCollectorNetworkDetection:
+
+    def test_unc_path_enables_polling_observer(self):
+        """UNC watchDirs should auto-enable PollingObserver."""
+        gateway = MagicMock()
+        config = _make_config(sources=[{
+            "systemType": "xjsbb",
+            "deviceName": "XJSBB-YB101",
+            "deviceType": "log_source",
+            "watchDirs": ["\\\\server\\share\\logs"],
+            "filePattern": "*.txt",
+        }])
+        connector = LogCollectorConnector(gateway, config, "log_collector")
+        watcher = connector._LogCollectorConnector__watcher
+        from watchdog.observers.polling import PollingObserver as WDP
+        assert isinstance(watcher._observer, WDP)
+
+    def test_local_path_uses_native_observer(self):
+        """Local watchDirs should use native Observer."""
+        d = tempfile.mkdtemp()
+        gateway = MagicMock()
+        config = _make_config(sources=[{
+            "systemType": "xjsbb",
+            "deviceName": "XJSBB-YB101",
+            "deviceType": "log_source",
+            "watchDirs": [d],
+            "filePattern": "*.txt",
+        }])
+        connector = LogCollectorConnector(gateway, config, "log_collector")
+        watcher = connector._LogCollectorConnector__watcher
+        from watchdog.observers.polling import PollingObserver as WDP
+        assert not isinstance(watcher._observer, WDP)
+        os.rmdir(d)
+
+    def test_config_override_polling_interval(self):
+        """watcherPollingIntervalSec config should override auto-detection."""
+        d = tempfile.mkdtemp()
+        gateway = MagicMock()
+        config = _make_config(sources=[{
+            "systemType": "xjsbb",
+            "deviceName": "XJSBB-YB101",
+            "deviceType": "log_source",
+            "watchDirs": [d],
+            "filePattern": "*.txt",
+        }])
+        config["watcherPollingIntervalSec"] = 10  # force polling even for local
+        connector = LogCollectorConnector(gateway, config, "log_collector")
+        watcher = connector._LogCollectorConnector__watcher
+        from watchdog.observers.polling import PollingObserver as WDP
+        assert isinstance(watcher._observer, WDP)
+        os.rmdir(d)

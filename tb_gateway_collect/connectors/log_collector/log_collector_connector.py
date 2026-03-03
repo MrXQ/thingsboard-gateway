@@ -60,7 +60,8 @@ class LogCollectorConnector(Connector, Thread):
                 device_name=src["deviceName"],
             )
 
-        self.__watcher = LogFileWatcher(self._on_file_event)
+        polling_interval = self._detect_polling_interval(config)
+        self.__watcher = LogFileWatcher(self._on_file_event, polling_interval=polling_interval)
         self.__log = self._create_logger(config)
 
     def _create_logger(self, config):
@@ -120,6 +121,23 @@ class LogCollectorConnector(Connector, Thread):
         pass
 
     # --- Setup ---
+
+    def _detect_polling_interval(self, config: dict) -> int:
+        """Auto-detect whether to use PollingObserver.
+
+        Returns polling interval in seconds (0 = native observer).
+        UNC paths (\\\\server\\share) trigger automatic 5s polling.
+        Config key 'watcherPollingIntervalSec' overrides auto-detection.
+        """
+        explicit = config.get("watcherPollingIntervalSec")
+        if explicit is not None:
+            return int(explicit)
+
+        for src in self.__sources:
+            for wd in src.get("watchDirs", []):
+                if wd.startswith("\\\\") or wd.startswith("//"):
+                    return 5  # default polling interval for network shares
+        return 0
 
     def _setup_watches(self):
         for src in self.__sources:

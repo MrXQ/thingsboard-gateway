@@ -87,3 +87,24 @@ class TestLogFileWatcher:
                 os.unlink(os.path.join(d, "test.jpg"))
             if os.path.exists(d):
                 os.rmdir(d)
+
+
+class TestLogFileWatcherPolling:
+
+    def test_polling_observer_when_interval_set(self):
+        from watchdog.observers.polling import PollingObserver as WatchdogPollingObserver
+        callback = MagicMock()
+        watcher = LogFileWatcher(callback, polling_interval=5)
+        assert isinstance(watcher._observer, WatchdogPollingObserver)
+
+    def test_native_observer_when_no_polling(self):
+        from watchdog.observers.polling import PollingObserver as WatchdogPollingObserver
+        callback = MagicMock()
+        watcher = LogFileWatcher(callback, polling_interval=0)
+        assert not isinstance(watcher._observer, WatchdogPollingObserver)
+
+    def test_default_is_native_observer(self):
+        from watchdog.observers.polling import PollingObserver as WatchdogPollingObserver
+        callback = MagicMock()
+        watcher = LogFileWatcher(callback)
+        assert not isinstance(watcher._observer, WatchdogPollingObserver)
