@@ -9,6 +9,8 @@ from tb_gateway_collect.connectors.log_collector.parsers.base_parser import LogP
 log = logging.getLogger(__name__)
 
 ROW_RE = re.compile(r"\d{4}/\d{1,2}/\d{1,2} .*,.*\r?\n")
+PAD_RE = re.compile(r"^(.*?)\t(.*)$")
+KV_RE = re.compile(r"(\w+)=([^\[,]+(?:\[[^\]]*\])?)")
 
 
 class IVSParser(LogParser):
@@ -63,23 +65,46 @@ class IVSParser(LogParser):
         for m in ROW_RE.finditer(content):
             try:
                 raw = m.group().rstrip("\r\n")
-                if "PadResult,OK" in raw:
-                    continue
                 columns = raw.split(",")
                 time_str = columns[0].replace("/", "-")
                 timestamp = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
 
-                result_type = 2
-                if "\u68c0\u6d4b\u7ed3\u679c" in raw or len(columns) == 12:
-                    result_type = 1
+                values = {"Time": columns[0], "raw_data": raw}
+
+                if "PadResult" in raw and len(columns) >= 3:
+                    # PadResult row: timestamp,PadResult,OK/NG,PadName\tKV pairs
+                    values["PadResult"] = columns[2].strip()
+                    # Column 3+ may contain PadName\tKV pairs
+                    rest = ",".join(columns[3:]) if len(columns) > 3 else ""
+                    pad_match = PAD_RE.match(rest)
+                    if pad_match:
+                        values["PadName"] = pad_match.group(1).strip()
+                        kv_part = pad_match.group(2).strip()
+                        for kv_m in KV_RE.finditer(kv_part):
+                            values[kv_m.group(1)] = kv_m.group(2)
+                    else:
+                        values["PadName"] = rest.strip()
+                    values["result_type"] = "2"
+
+                elif "\u68c0\u6d4b\u7ed3\u679c" in raw or len(columns) == 12:
+                    # Detection result row
+                    label = columns[1].strip() if len(columns) > 1 else ""
+                    direction = label[0] if label else ""
+                    values["Direction"] = direction
+                    for i in range(2, min(12, len(columns))):
+                        values[f"Result{i - 2}"] = columns[i].strip()
+                    values["result_type"] = "1"
+
+                else:
+                    # Other row type — store columns positionally
+                    for i in range(1, len(columns)):
+                        values[f"col_{i}"] = columns[i].strip()
+                    values["result_type"] = "2"
 
                 records.append(LogRecord(
                     device_name=device_name,
                     timestamp=timestamp,
-                    values={
-                        "raw_data": raw,
-                        "result_type": result_type,
-                    },
+                    values=values,
                     system_type="ivs",
                 ))
             except Exception as e:
