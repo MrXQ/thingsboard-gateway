@@ -1,0 +1,55 @@
+{
+  "pollIntervalMs": 60000,
+  "stateFile": "log_collector_state.json",
+  "logLevel": "INFO",
+  "sources": [
+    {
+      "systemType": "ab",
+      "deviceName": "AB-YB101",
+      "deviceType": "log_source",
+      "watchDirs": [],
+      "filePattern": "*.txt",
+      "dateFilterDays": 30
+    },
+    {
+      "systemType": "ivs",
+      "deviceName": "IVS-YB101",
+      "deviceType": "log_source",
+      "watchDirs": [],
+      "filePattern": "*.txt",
+      "dateFilterDays": null
+    },
+    {
+      "systemType": "ics",
+      "deviceName": "ICS-YB101",
+      "deviceType": "log_source",
+      "watchDirs": [],
+      "filePattern": "*.txt",
+      "dateFilterDays": 30
+    },
+    {
+      "systemType": "hccm_result",
+      "deviceName": "HCCM-Result-YB101",
+      "deviceType": "log_source",
+      "watchDirs": [],
+      "filePattern": "*.txt",
+      "dateFilterDays": null
+    },
+    {
+      "systemType": "hccm_slider",
+      "deviceName": "HCCM-Slider-YB101",
+      "deviceType": "log_source",
+      "watchDirs": [],
+      "filePattern": "*.txt",
+      "dateFilterDays": null
+    },
+    {
+      "systemType": "xjsbb",
+      "deviceName": "XJSBB-YB101",
+      "deviceType": "log_source",
+      "watchDirs": [],
+      "filePattern": "*.txt",
+      "dateFilterDays": null
+    }
+  ]
+}

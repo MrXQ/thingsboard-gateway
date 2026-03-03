@@ -12,6 +12,12 @@
       "type": "scada",
       "class": "ScadaConnector",
       "configuration": "scada.json"
+    },
+    {
+      "name": "Log Collector",
+      "type": "log_collector",
+      "class": "LogCollectorConnector",
+      "configuration": "log_collector.json"
     }
   ]
 }

@@ -64,10 +64,26 @@ HIDDEN_IMPORTS = [
     # Collect extension shims
     "thingsboard_gateway.extensions.kv8000",
     "thingsboard_gateway.extensions.scada",
+    "thingsboard_gateway.extensions.log_collector",
+    # Log collector modules
+    "tb_gateway_collect.connectors.log_collector",
+    "tb_gateway_collect.connectors.log_collector.log_collector_connector",
+    "tb_gateway_collect.connectors.log_collector.log_file_watcher",
+    "tb_gateway_collect.connectors.log_collector.log_uplink_converter",
+    "tb_gateway_collect.connectors.log_collector.state_tracker",
+    "tb_gateway_collect.connectors.log_collector.parsers",
+    "tb_gateway_collect.connectors.log_collector.parsers.ab_dim_parser",
+    "tb_gateway_collect.connectors.log_collector.parsers.ivs_parser",
+    "tb_gateway_collect.connectors.log_collector.parsers.ics_parser",
+    "tb_gateway_collect.connectors.log_collector.parsers.hccm_parser",
+    "tb_gateway_collect.connectors.log_collector.parsers.xjsbb_parser",
     # JPype (SCADA/FC7 JVM bridge)
     "jpype",
     "jpype._core",
     "jpype._jclass",
+    # Log collector dependencies
+    "watchdog",
+    "chardet",
 ]
 
 a = Analysis(
