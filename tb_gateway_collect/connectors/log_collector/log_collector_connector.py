@@ -78,6 +78,7 @@ class LogCollectorConnector(Connector, Thread):
     def open(self):
         self.__stopped = False
         self._setup_watches()
+        self._snapshot_existing_files()
         self.__watcher.start()
         self.start()
         self.__log.info("Log Collector started with %d sources", len(self.__sources))
@@ -126,6 +127,33 @@ class LogCollectorConnector(Connector, Thread):
                         self.__watcher.add_watch(watch_dir, pattern)
                     except Exception as e:
                         self.__log.warning("Failed to watch %s: %s", watch_dir, e)
+
+    def _snapshot_existing_files(self):
+        """On cold start, mark all existing files as already-read."""
+        if not self.__state_tracker.is_empty():
+            return
+
+        count = 0
+        for src in self.__sources:
+            pattern = src.get("filePattern", "*.txt")
+            for watch_dir in src.get("watchDirs", []):
+                if not os.path.isdir(watch_dir):
+                    continue
+                for root, dirs, files in os.walk(watch_dir):
+                    for fname in files:
+                        if fnmatch.fnmatch(fname, pattern):
+                            file_path = os.path.join(root, fname)
+                            try:
+                                size = os.path.getsize(file_path)
+                                self.__state_tracker.save_cursor(
+                                    file_path, {"byte_offset": size}
+                                )
+                                count += 1
+                            except OSError:
+                                pass
+
+        if count > 0:
+            self.__log.info("Cold start: marked %d existing files as already-read", count)
 
     # --- File event handler ---
 
