@@ -196,3 +196,63 @@ class TestLogCollectorColdStart:
         connector.close()
 
         assert gateway.send_to_storage.call_count >= 1
+
+
+class TestLogCollectorFlushIntegration:
+
+    def test_state_flushed_after_poll_cycle(self):
+        """State tracker should be flushed after each poll cycle, not per-file."""
+        d = tempfile.mkdtemp()
+        state_dir = tempfile.mkdtemp()
+        path = os.path.join(d, "data.txt")
+        with open(path, "w", newline="") as f:
+            f.write("2026-03-03 10:30:45:123   FlushTest:1.0\r\n")
+
+        gateway = MagicMock()
+        config = _make_config(sources=[{
+            "systemType": "xjsbb",
+            "deviceName": "XJSBB-YB101",
+            "deviceType": "log_source",
+            "watchDirs": [d],
+            "filePattern": "*.txt",
+        }], state_dir=state_dir)
+        connector = LogCollectorConnector(gateway, config, "log_collector")
+
+        # Spy on flush_if_dirty
+        tracker = connector._LogCollectorConnector__state_tracker
+        with patch.object(tracker, 'flush_if_dirty', wraps=tracker.flush_if_dirty) as mock_flush:
+            connector.open()
+            time.sleep(2)
+            connector.close()
+            # flush_if_dirty should have been called (at least once per poll + once on close)
+            assert mock_flush.call_count >= 2
+
+    def test_close_flushes_state(self):
+        """close() should flush any pending state to disk."""
+        d = tempfile.mkdtemp()
+        state_dir = tempfile.mkdtemp()
+        state_path = os.path.join(state_dir, "state.json")
+        path = os.path.join(d, "data.txt")
+        with open(path, "w", newline="") as f:
+            f.write("2026-03-03 10:30:45:123   CloseTest:2.0\r\n")
+
+        gateway = MagicMock()
+        config = _make_config(sources=[{
+            "systemType": "xjsbb",
+            "deviceName": "XJSBB-YB101",
+            "deviceType": "log_source",
+            "watchDirs": [d],
+            "filePattern": "*.txt",
+        }], state_dir=state_dir)
+        connector = LogCollectorConnector(gateway, config, "log_collector")
+        connector.open()
+        time.sleep(2)
+        connector.close()
+        time.sleep(0.5)
+
+        # State should be persisted on disk
+        assert os.path.exists(state_path)
+        with open(state_path, "r") as f:
+            data = json.load(f)
+        # The data file's cursor should be saved
+        assert any("data.txt" in k for k in data.keys())

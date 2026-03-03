@@ -4,7 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from threading import Thread
+from threading import Thread, Lock
 from time import sleep, monotonic
 from typing import Optional
 
@@ -43,6 +43,8 @@ class LogCollectorConnector(Connector, Thread):
         self.__connected = False
         self.__stopped = False
         self.daemon = True
+        self.__process_lock = Lock()
+        self.__processing: set[str] = set()
 
         self.__converter = LogUplinkConverter(
             device_type=config.get("defaultDeviceType", "log_source")
@@ -90,6 +92,7 @@ class LogCollectorConnector(Connector, Thread):
             self.__watcher.stop()
         except Exception:
             pass
+        self.__state_tracker.flush_if_dirty()
         self.__log.info("Log Collector stopped")
 
     def get_id(self):
@@ -152,6 +155,7 @@ class LogCollectorConnector(Connector, Thread):
                             except OSError:
                                 pass
 
+        self.__state_tracker.flush_if_dirty()
         if count > 0:
             self.__log.info("Cold start: marked %d existing files as already-read", count)
 
@@ -162,6 +166,7 @@ class LogCollectorConnector(Connector, Thread):
         for src in self.__sources:
             if self._file_belongs_to_source(file_path, src):
                 self._process_file(file_path, src)
+                self.__state_tracker.flush_if_dirty()
                 return
 
     def _file_belongs_to_source(self, file_path: str, source: dict) -> bool:
@@ -177,6 +182,19 @@ class LogCollectorConnector(Connector, Thread):
         return False
 
     def _process_file(self, file_path: str, source: dict):
+        # Skip if another thread is already processing this file
+        with self.__process_lock:
+            if file_path in self.__processing:
+                return
+            self.__processing.add(file_path)
+
+        try:
+            self._process_file_inner(file_path, source)
+        finally:
+            with self.__process_lock:
+                self.__processing.discard(file_path)
+
+    def _process_file_inner(self, file_path: str, source: dict):
         system_type = source["systemType"]
         device_name = source["deviceName"]
         device_type = source.get("deviceType", "log_source")
@@ -229,6 +247,7 @@ class LogCollectorConnector(Connector, Thread):
         while not self.__stopped:
             start = monotonic()
             self._poll_all_sources()
+            self.__state_tracker.flush_if_dirty()
 
             any_connected = any(s.connected for s in self.__source_statuses.values())
             self.__connected = any_connected
