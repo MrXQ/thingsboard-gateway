@@ -1,5 +1,6 @@
 {
   "pollIntervalMs": 3000,
+  "uploadOnChangeOnly": true,
   "jarPath": "exlib/FC7_DBcomm_Java.jar",
   "devices": [
     {

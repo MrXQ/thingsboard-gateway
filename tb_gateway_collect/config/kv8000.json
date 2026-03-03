@@ -1,5 +1,6 @@
 {
   "pollIntervalMs": 3000,
+  "uploadOnChangeOnly": true,
   "devices": [
     {
       "deviceName": "KV8000-YB101",

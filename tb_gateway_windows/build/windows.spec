@@ -54,6 +54,7 @@ HIDDEN_IMPORTS = [
     "pystray",
     "PIL",
     # Collect connectors (dynamically loaded via extension shims)
+    "tb_gateway_collect.common.change_filter",
     "tb_gateway_collect.common.plc_data_types",
     "tb_gateway_collect.connectors.kv8000.kv8000_connector",
     "tb_gateway_collect.connectors.kv8000.kv8000_protocol",
