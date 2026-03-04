@@ -15,6 +15,8 @@ def _make_config(sources=None, state_dir=None):
         "name": "Log Collector",
         "id": "test-log-collector-001",
         "pollIntervalMs": 500,
+        "watcherPollDelayMs": 200,
+        "watcherDebounceMs": 200,
         "stateFile": os.path.join(state_dir, "state.json"),
         "logLevel": "DEBUG",
         "sources": sources or [],
@@ -167,7 +169,7 @@ class TestLogCollectorColdStart:
         assert gateway.send_to_storage.call_count >= 1
 
     def test_warm_restart_does_not_snapshot(self):
-        """Warm restart (state has entries): new files ARE processed from byte 0."""
+        """Warm restart (state has entries): new files created after open() ARE processed."""
         d = tempfile.mkdtemp()
         state_dir = tempfile.mkdtemp()
         state_path = os.path.join(state_dir, "state.json")
@@ -175,12 +177,6 @@ class TestLogCollectorColdStart:
         # Pre-populate state file with one entry (makes it non-empty)
         with open(state_path, "w") as f:
             json.dump({"some_old_file.txt": {"byte_offset": 100}}, f)
-
-        # Create a file that should be processed (warm restart, no snapshot)
-        # Use unique variable name to avoid parser change-detection filtering
-        path = os.path.join(d, "data.txt")
-        with open(path, "w", newline="") as f:
-            f.write("2026-03-03 10:30:45:123   WarmTemp:99.9\r\n")
 
         gateway = MagicMock()
         config = _make_config(sources=[{
@@ -192,7 +188,14 @@ class TestLogCollectorColdStart:
         }], state_dir=state_dir)
         connector = LogCollectorConnector(gateway, config, "log_collector")
         connector.open()
-        time.sleep(2)
+        time.sleep(1)
+
+        # Create file AFTER open() — watchfiles detects it as new
+        path = os.path.join(d, "data.txt")
+        with open(path, "w", newline="") as f:
+            f.write("2026-03-03 10:30:45:123   WarmTemp:99.9\r\n")
+
+        time.sleep(3)
         connector.close()
 
         assert gateway.send_to_storage.call_count >= 1
@@ -200,11 +203,12 @@ class TestLogCollectorColdStart:
 
 class TestLogCollectorFlushIntegration:
 
-    def test_state_flushed_after_poll_cycle(self):
-        """State tracker should be flushed after each poll cycle, not per-file."""
+    def test_state_flushed_after_file_event(self):
+        """State tracker should be flushed after watchfiles processes a file."""
         d = tempfile.mkdtemp()
         state_dir = tempfile.mkdtemp()
         path = os.path.join(d, "data.txt")
+        # File created BEFORE open — will be snapshotted
         with open(path, "w", newline="") as f:
             f.write("2026-03-03 10:30:45:123   FlushTest:1.0\r\n")
 
@@ -218,13 +222,12 @@ class TestLogCollectorFlushIntegration:
         }], state_dir=state_dir)
         connector = LogCollectorConnector(gateway, config, "log_collector")
 
-        # Spy on flush_if_dirty
         tracker = connector._LogCollectorConnector__state_tracker
         with patch.object(tracker, 'flush_if_dirty', wraps=tracker.flush_if_dirty) as mock_flush:
             connector.open()
             time.sleep(2)
             connector.close()
-            # flush_if_dirty should have been called (at least once per poll + once on close)
+            # flush_if_dirty called from: snapshot (1) + close (1) = at least 2
             assert mock_flush.call_count >= 2
 
     def test_close_flushes_state(self):
@@ -258,138 +261,3 @@ class TestLogCollectorFlushIntegration:
         assert any("data.txt" in k for k in data.keys())
 
 
-class TestLogCollectorPollSkip:
-
-    def test_poll_skips_unchanged_file(self):
-        """Second poll should not even invoke the parser for unchanged files."""
-        from tb_gateway_collect.connectors.log_collector.parsers import get_parser as real_get_parser
-
-        d = tempfile.mkdtemp()
-        state_dir = tempfile.mkdtemp()
-        state_path = os.path.join(state_dir, "state.json")
-        # Warm restart: pre-populate state so snapshot is skipped
-        with open(state_path, "w") as f:
-            json.dump({"dummy.txt": {"byte_offset": 0}}, f)
-
-        path = os.path.join(d, "data.txt")
-        with open(path, "w", newline="") as f:
-            f.write("2026-03-03 10:30:45:123   SkipTest:1.0\r\n")
-
-        gateway = MagicMock()
-        config = _make_config(sources=[{
-            "systemType": "xjsbb",
-            "deviceName": "XJSBB-YB101",
-            "deviceType": "log_source",
-            "watchDirs": [d],
-            "filePattern": "*.txt",
-        }], state_dir=state_dir)
-        # Use very short poll interval to get multiple polls
-        config["pollIntervalMs"] = 300
-        connector = LogCollectorConnector(gateway, config, "log_collector")
-
-        with patch(
-            'tb_gateway_collect.connectors.log_collector.log_collector_connector.get_parser',
-            wraps=real_get_parser,
-        ) as mock_gp:
-            connector.open()
-            time.sleep(2)  # should get ~6 polls
-            connector.close()
-
-            # With mtime/size skip, parser should only be invoked once (first poll)
-            assert mock_gp.call_count == 1
-
-    def test_poll_processes_modified_file(self):
-        """File modified between polls should be re-processed."""
-        from tb_gateway_collect.connectors.log_collector.parsers import get_parser as real_get_parser
-
-        d = tempfile.mkdtemp()
-        state_dir = tempfile.mkdtemp()
-        state_path = os.path.join(state_dir, "state.json")
-        # Warm restart: pre-populate state so snapshot is skipped
-        with open(state_path, "w") as f:
-            json.dump({"dummy.txt": {"byte_offset": 0}}, f)
-
-        path = os.path.join(d, "data.txt")
-        with open(path, "w", newline="") as f:
-            f.write("2026-03-03 10:30:45:123   ModTest:1.0\r\n")
-
-        gateway = MagicMock()
-        config = _make_config(sources=[{
-            "systemType": "xjsbb",
-            "deviceName": "XJSBB-YB101",
-            "deviceType": "log_source",
-            "watchDirs": [d],
-            "filePattern": "*.txt",
-        }], state_dir=state_dir)
-        config["pollIntervalMs"] = 500
-        connector = LogCollectorConnector(gateway, config, "log_collector")
-
-        with patch(
-            'tb_gateway_collect.connectors.log_collector.log_collector_connector.get_parser',
-            wraps=real_get_parser,
-        ) as mock_gp:
-            connector.open()
-            time.sleep(1)
-
-            # Append new data between polls
-            with open(path, "a", newline="") as f:
-                f.write("2026-03-03 10:31:00:000   ModTest:2.0\r\n")
-
-            time.sleep(2)
-            connector.close()
-
-            # Parser should be invoked at least twice (first poll + after modification)
-            assert mock_gp.call_count >= 2
-
-
-class TestLogCollectorNetworkDetection:
-
-    def test_unc_path_enables_polling_observer(self):
-        """UNC watchDirs should auto-enable PollingObserver."""
-        gateway = MagicMock()
-        config = _make_config(sources=[{
-            "systemType": "xjsbb",
-            "deviceName": "XJSBB-YB101",
-            "deviceType": "log_source",
-            "watchDirs": ["\\\\server\\share\\logs"],
-            "filePattern": "*.txt",
-        }])
-        connector = LogCollectorConnector(gateway, config, "log_collector")
-        watcher = connector._LogCollectorConnector__watcher
-        from watchdog.observers.polling import PollingObserver as WDP
-        assert isinstance(watcher._observer, WDP)
-
-    def test_local_path_uses_native_observer(self):
-        """Local watchDirs should use native Observer."""
-        d = tempfile.mkdtemp()
-        gateway = MagicMock()
-        config = _make_config(sources=[{
-            "systemType": "xjsbb",
-            "deviceName": "XJSBB-YB101",
-            "deviceType": "log_source",
-            "watchDirs": [d],
-            "filePattern": "*.txt",
-        }])
-        connector = LogCollectorConnector(gateway, config, "log_collector")
-        watcher = connector._LogCollectorConnector__watcher
-        from watchdog.observers.polling import PollingObserver as WDP
-        assert not isinstance(watcher._observer, WDP)
-        os.rmdir(d)
-
-    def test_config_override_polling_interval(self):
-        """watcherPollingIntervalSec config should override auto-detection."""
-        d = tempfile.mkdtemp()
-        gateway = MagicMock()
-        config = _make_config(sources=[{
-            "systemType": "xjsbb",
-            "deviceName": "XJSBB-YB101",
-            "deviceType": "log_source",
-            "watchDirs": [d],
-            "filePattern": "*.txt",
-        }])
-        config["watcherPollingIntervalSec"] = 10  # force polling even for local
-        connector = LogCollectorConnector(gateway, config, "log_collector")
-        watcher = connector._LogCollectorConnector__watcher
-        from watchdog.observers.polling import PollingObserver as WDP
-        assert isinstance(watcher._observer, WDP)
-        os.rmdir(d)

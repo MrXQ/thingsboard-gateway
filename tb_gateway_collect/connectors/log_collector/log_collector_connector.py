@@ -39,7 +39,7 @@ class LogCollectorConnector(Connector, Thread):
         self.__connector_type = connector_type
         self.__name = config.get("name", "Log Collector")
         self.__id = config.get("id")
-        self.__poll_interval = config.get("pollIntervalMs", 60000) / 1000.0
+        self.__poll_interval = config.get("pollIntervalMs", 30000) / 1000.0
         self.__connected = False
         self.__stopped = False
         self.daemon = True
@@ -60,8 +60,11 @@ class LogCollectorConnector(Connector, Thread):
                 device_name=src["deviceName"],
             )
 
-        polling_interval = self._detect_polling_interval(config)
-        self.__watcher = LogFileWatcher(self._on_file_event, polling_interval=polling_interval)
+        poll_delay_ms = config.get("watcherPollDelayMs", 500)
+        debounce_ms = config.get("watcherDebounceMs", 500)
+        self.__watcher = LogFileWatcher(self._on_file_event,
+                                        poll_delay_ms=poll_delay_ms,
+                                        debounce_ms=debounce_ms)
         self.__log = self._create_logger(config)
 
     def _create_logger(self, config):
@@ -122,23 +125,6 @@ class LogCollectorConnector(Connector, Thread):
 
     # --- Setup ---
 
-    def _detect_polling_interval(self, config: dict) -> int:
-        """Auto-detect whether to use PollingObserver.
-
-        Returns polling interval in seconds (0 = native observer).
-        UNC paths (\\\\server\\share) trigger automatic 5s polling.
-        Config key 'watcherPollingIntervalSec' overrides auto-detection.
-        """
-        explicit = config.get("watcherPollingIntervalSec")
-        if explicit is not None:
-            return int(explicit)
-
-        for src in self.__sources:
-            for wd in src.get("watchDirs", []):
-                if wd.startswith("\\\\") or wd.startswith("//"):
-                    return 5  # default polling interval for network shares
-        return 0
-
     def _setup_watches(self):
         for src in self.__sources:
             pattern = src.get("filePattern", "*.txt")
@@ -180,7 +166,7 @@ class LogCollectorConnector(Connector, Thread):
     # --- File event handler ---
 
     def _on_file_event(self, file_path: str):
-        """Called by watchdog when a file is created or modified."""
+        """Called by watchfiles when a file is created or modified."""
         for src in self.__sources:
             if self._file_belongs_to_source(file_path, src):
                 self._process_file(file_path, src)
@@ -268,24 +254,20 @@ class LogCollectorConnector(Connector, Thread):
             current += timedelta(days=1)
         return False
 
-    # --- Thread run loop (fallback polling) ---
+    # --- Thread run loop (health check) ---
 
     def run(self):
         while not self.__stopped:
             start = monotonic()
-            self._poll_all_sources()
-            self.__state_tracker.flush_if_dirty()
-
-            any_connected = any(s.connected for s in self.__source_statuses.values())
-            self.__connected = any_connected
+            self._check_source_health()
 
             elapsed = monotonic() - start
             remaining = self.__poll_interval - elapsed
             if remaining > 0 and not self.__stopped:
                 sleep(remaining)
 
-    def _poll_all_sources(self):
-        """Fallback polling: scan directories for new/changed files."""
+    def _check_source_health(self):
+        """Monitor directory accessibility and update source connection status."""
         for src in self.__sources:
             device_name = src["deviceName"]
             status = self.__source_statuses.get(device_name)
@@ -305,27 +287,5 @@ class LogCollectorConnector(Connector, Thread):
                         status.error = f"Directory not accessible: {watch_dir}"
                         self.__log.warning("Source %s disconnected: %s", device_name, watch_dir)
 
-                if is_accessible:
-                    self._scan_directory(watch_dir, src)
-
-    def _scan_directory(self, directory: str, source: dict):
-        """Walk directory and process any matching files that have changed."""
-        pattern = source.get("filePattern", "*.txt")
-        for root, dirs, files in os.walk(directory):
-            for fname in files:
-                if fnmatch.fnmatch(fname, pattern):
-                    file_path = os.path.join(root, fname)
-                    if self._file_unchanged(file_path):
-                        continue
-                    self._process_file(file_path, source)
-
-    def _file_unchanged(self, file_path: str) -> bool:
-        """Check if file mtime+size match the stored cursor. Skip if unchanged."""
-        cursor = self.__state_tracker.get_cursor(file_path)
-        if cursor is None or "mtime" not in cursor:
-            return False  # no previous stat — must process
-        try:
-            st = os.stat(file_path)
-            return st.st_mtime == cursor["mtime"] and st.st_size == cursor["size"]
-        except OSError:
-            return False
+        any_connected = any(s.connected for s in self.__source_statuses.values())
+        self.__connected = any_connected
