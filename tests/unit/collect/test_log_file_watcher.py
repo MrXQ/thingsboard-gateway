@@ -123,6 +123,38 @@ class TestLogFileWatcher:
         watcher.stop()  # should not raise
 
 
+class TestLogFileWatcherPathMatching:
+
+    def test_matches_any_watch_normalizes_paths(self):
+        """Path matching should work even with mixed separators or case."""
+        callback = MagicMock()
+        watcher = LogFileWatcher(callback)
+        # Build UNC path without shell escaping issues
+        sep = os.sep
+        watch_dir = sep*2 + '192.168.3.50' + sep + 'ICSData'
+        watcher.add_watch(watch_dir, "*.txt")
+
+        # Same format
+        assert watcher._matches_any_watch(
+            sep*2 + '192.168.3.50' + sep + 'ICSData' + sep + 'sub' + sep + 'file.txt')
+        # Different case
+        assert watcher._matches_any_watch(
+            sep*2 + '192.168.3.50' + sep + 'icsdata' + sep + 'sub' + sep + 'file.txt')
+        # Wrong extension
+        assert not watcher._matches_any_watch(
+            sep*2 + '192.168.3.50' + sep + 'ICSData' + sep + 'sub' + sep + 'file.jpg')
+        # Different server
+        assert not watcher._matches_any_watch(
+            sep*2 + 'other.server' + sep + 'ICSData' + sep + 'file.txt')
+
+    def test_uses_custom_logger(self):
+        """LogFileWatcher should use custom logger when provided."""
+        callback = MagicMock()
+        custom_logger = MagicMock()
+        watcher = LogFileWatcher(callback, logger=custom_logger)
+        assert watcher._log is custom_logger
+
+
 class TestLogFileWatcherResilience:
 
     def test_auto_restart_after_error(self):

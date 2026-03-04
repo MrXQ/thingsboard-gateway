@@ -25,13 +25,15 @@ class LogFileWatcher:
     """
 
     def __init__(self, callback: Callable[[str], None],
-                 poll_delay_ms: int = 500, debounce_ms: int = 500):
+                 poll_delay_ms: int = 500, debounce_ms: int = 500,
+                 logger=None):
         self._callback = callback
         self._poll_delay_ms = poll_delay_ms
         self._debounce_ms = debounce_ms
         self._stop_event = Event()
         self._thread: Thread | None = None
         self._watches: list[dict] = []
+        self._log = logger or log
 
     @property
     def watched_dirs(self) -> list[str]:
@@ -52,6 +54,7 @@ class LogFileWatcher:
 
     def _run(self):
         dirs = [w["dir"] for w in self._watches]
+        self._log.info("File watcher started, watching %d dirs: %s", len(dirs), dirs)
         while not self._stop_event.is_set():
             try:
                 for changes in watch(
@@ -68,23 +71,23 @@ class LogFileWatcher:
                                 try:
                                     self._callback(path)
                                 except Exception as e:
-                                    log.error("Callback error for %s: %s", path, e)
+                                    self._log.error("Callback error for %s: %s", path, e)
             except Exception as e:
                 if self._stop_event.is_set():
                     return
-                log.warning("File watcher error, restarting in %ds: %s",
-                            _RESTART_BACKOFF_S, e)
+                self._log.warning("File watcher error, restarting in %ds: %s",
+                                  _RESTART_BACKOFF_S, e)
                 self._stop_event.wait(timeout=_RESTART_BACKOFF_S)
+        self._log.info("File watcher stopped")
 
     def _matches_any_watch(self, path: str) -> bool:
-        fname = os.path.basename(path)
+        norm_path = os.path.normcase(os.path.normpath(path))
+        fname = os.path.basename(norm_path)
         for w in self._watches:
             if fnmatch.fnmatch(fname, w["pattern"]):
-                try:
-                    if os.path.commonpath([w["dir"], path]) == os.path.normpath(w["dir"]):
-                        return True
-                except ValueError:
-                    continue
+                norm_dir = os.path.normcase(os.path.normpath(w["dir"]))
+                if norm_path.startswith(norm_dir + os.sep) or norm_path == norm_dir:
+                    return True
         return False
 
     def stop(self):

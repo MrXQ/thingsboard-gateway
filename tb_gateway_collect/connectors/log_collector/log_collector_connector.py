@@ -60,12 +60,13 @@ class LogCollectorConnector(Connector, Thread):
                 device_name=src["deviceName"],
             )
 
+        self.__log = self._create_logger(config)
         poll_delay_ms = config.get("watcherPollDelayMs", 500)
         debounce_ms = config.get("watcherDebounceMs", 500)
         self.__watcher = LogFileWatcher(self._on_file_event,
                                         poll_delay_ms=poll_delay_ms,
-                                        debounce_ms=debounce_ms)
-        self.__log = self._create_logger(config)
+                                        debounce_ms=debounce_ms,
+                                        logger=self.__log)
 
     def _create_logger(self, config):
         try:
@@ -175,14 +176,13 @@ class LogCollectorConnector(Connector, Thread):
 
     def _file_belongs_to_source(self, file_path: str, source: dict) -> bool:
         pattern = source.get("filePattern", "*.txt")
-        if not fnmatch.fnmatch(os.path.basename(file_path), pattern):
+        norm_path = os.path.normcase(os.path.normpath(file_path))
+        if not fnmatch.fnmatch(os.path.basename(norm_path), pattern):
             return False
         for watch_dir in source.get("watchDirs", []):
-            try:
-                if os.path.commonpath([watch_dir, file_path]) == os.path.normpath(watch_dir):
-                    return True
-            except ValueError:
-                continue
+            norm_dir = os.path.normcase(os.path.normpath(watch_dir))
+            if norm_path.startswith(norm_dir + os.sep) or norm_path == norm_dir:
+                return True
         return False
 
     def _process_file(self, file_path: str, source: dict):
