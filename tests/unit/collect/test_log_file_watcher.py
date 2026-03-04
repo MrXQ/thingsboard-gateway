@@ -77,7 +77,7 @@ class TestLogFileWatcher:
         try:
             watcher.add_watch(d, "*.txt")
             watcher.start()
-            time.sleep(0.5)
+            time.sleep(1)  # allow watchfiles to establish baseline snapshot
 
             # Modify the file
             with open(path, "a") as f:
